@@ -1,2 +1,5 @@
 *.swp
 tmp
+test/data
+logs
+
