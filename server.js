@@ -4,6 +4,7 @@
  */
 require(__dirname + "/lib/setup")
     .ext( __dirname + "/lib")
+    .ext( __dirname + "/extlib")
     .ext( __dirname + "/deps")
     .ext( __dirname + "/deps/express/support");
 
