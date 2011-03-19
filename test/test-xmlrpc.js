@@ -71,7 +71,6 @@ module.exports = nodeunit.testCase({
 
         var parser = new XMLRPC.SaxParser({
             onDone: function (data) {
-
                 test.equals(false, data.is_response);
                 test.equals(false, data.is_fault);
                 test.equals('test.method', data.method);
@@ -97,11 +96,12 @@ module.exports = nodeunit.testCase({
 
             onError: function (msg) {
                 test.ok(false, msg);
+                test.done();
             }
 
         });
 
-        parser.parseString(test_xml);
+        parser.parseString(test_xml).finish();
 
     },
 
@@ -132,10 +132,11 @@ module.exports = nodeunit.testCase({
             },
             onError: function (msg) {
                 test.ok(false, msg);
+                test.done();
             }
         });
 
-        parser.parseString(test_xml);
+        parser.parseString(test_xml).finish();
 
     },
 
@@ -172,10 +173,11 @@ module.exports = nodeunit.testCase({
             },
             onError: function (msg) {
                 test.ok(false, msg);
+                test.done();
             }
         });
 
-        parser.parseString(test_xml);
+        parser.parseString(test_xml).finish();
 
     },
 
@@ -209,7 +211,7 @@ module.exports = nodeunit.testCase({
             }
         });
 
-        parser.parseString(test_xml);
+        parser.parseString(test_xml).finish();
 
     },
 
@@ -226,7 +228,7 @@ module.exports = nodeunit.testCase({
                 test.ok(false, msg);
             }
         });
-        parser.parseString(test_xml);
+        parser.parseString(test_xml).finish();
     },
 
     "XML-RPC fault roundtrip, built and parsed": function (test) {
@@ -243,9 +245,71 @@ module.exports = nodeunit.testCase({
             },
             onError: function (msg) {
                 test.ok(false, msg);
+                test.done();
             }
         });
-        parser.parseString(test_xml);
+        parser.parseString(test_xml).finish();
+    },
+
+    "XML-RPC call with a struct containing implicit strings can be parsed": function (test) {
+        var test_xml = [
+            "<methodCall>",
+            "<methodName>test.method</methodName>",
+            "<params>",
+            "<param>",
+            "<struct>",
+            "   <member>",
+            "      <name>implicitString</name>",
+            "      <value>this is a string</value>",
+            "      </member>",
+            "   <member>",
+            "      <name>explicitString</name>",
+            "      <value><string>this is also a string</string></value>",
+            "      </member>",
+            "   </struct>",
+            "</param>",
+            "</params>",
+            "</methodCall>"
+        ].join("\n");
+
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.equals(false, data.is_response);
+                test.equals(false, data.is_fault);
+                test.equals('test.method', data.method);
+                deep_equal(test,
+                    [ 
+                        { 
+                            implicitString: "this is a string", 
+                            explicitString: "this is also a string" 
+                        }
+                    ], 
+                    data.params
+                );
+                test.done();
+            },
+            onError: function (msg) {
+                test.ok(false, msg);
+                test.done();
+            }
+        });
+        parser.parseString(test_xml).finish();
+    },
+
+    "XML-RPC parsing fails with an error on incomplete input": function (test) {
+        var test_xml = [
+            "<methodResponse>",
+            "<params>", "<param>",
+        ].join("\n");
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.ok(false, "Parsing this should have failed: " + test_xml);
+            },
+            onError: function (msg) {
+                test.done();
+            }
+        });
+        parser.parseString(test_xml).finish();
     }
 
 });
