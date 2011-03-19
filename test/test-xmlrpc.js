@@ -7,99 +7,245 @@ require(__dirname + "/../lib/setup")
     .ext( __dirname + "/../deps")
     .ext( __dirname + "/../deps/express/support");
 
-var 
-    util = require('util'),
+var util = require('util'),
     fs = require('fs'),
+    _ = require('underscore'),
     nodeunit = require('nodeunit'),
     assert = require('assert'),
     async = require('async'),
-    XMLRPC = require('xmlrpc'),
-    Alfred = require('alfred'),
     XMLRPC = require('xmlrpc');
 
-require('underscore');
-require('class');
-
-var test_db_fn = __dirname + '/data';
+var deep_equal = function (test, expected, result) {
+    if (_(expected).isDate()) {
+        test.equals(''+expected, ''+result);
+    } else if (_(expected).isArray()) {
+        _(expected).each(function (s_expected, idx) {
+            deep_equal(test, s_expected, result[idx]);
+        });
+    } else {
+        test.deepEqual(expected, result);
+    }
+};
 
 module.exports = nodeunit.testCase({
 
-    setUp: function (callback) {
-        callback();
-    },
+    "XML-RPC call can be parsed": function (test) {
 
-    tearDown: function (callback) {
-        callback();
-    },
+        var test_xml = [
+            "<methodCall>",
+            "<methodName>test.method</methodName>",
+            "<params>",
+            "<param><value>assumed string</value></param>",
+            "<param><value><string>explicit string</string></value></param>",
+            "<param><i4>1234</i4></param>",
+            "<param><int>-1234</int></param>",
+            "<param><double>-12.34</double></param>",
+            "<param><dateTime.iso8601>20110318T01:23:45Z</dateTime.iso8601></param>",
+            "<param><dateTime.iso8601>2011-03-16T02:34:56Z</dateTime.iso8601></param>",
+            "<param><base64>dGVzdGluZzEy</base64></param>",
+            "<param>",
+            "<array>",
+            "   <data>",
+            "      <value><i4>12</i4></value>",
+            "      <value><string>Egypt</string></value>",
+            "      <value><boolean>0</boolean></value>",
+            "      <value><i4>-31</i4></value>",
+            "      </data>",
+            "   </array>",
+            "</param>",
+            "<param>",
+            "<struct>",
+            "   <member>",
+            "      <name>lowerBound</name>",
+            "      <value><i4>18</i4></value>",
+            "      </member>",
+            "   <member>",
+            "      <name>upperBound</name>",
+            "      <value><i4>139</i4></value>",
+            "      </member>",
+            "   </struct>",
+            "</param>",
+            "</params>",
+            "</methodCall>"
+        ].join("\n");
 
-    "Play with XMLRPC": function (test) {
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
 
-        async.waterfall(
-            [
-                function (next) {
-                    var msg = new XMLRPC.Message('hello', [
-                        "one", "two", { three: 1 }, 
-                        new Date(),
-                        [ 'here', { garg: '1' }, 'is', 'an', 'array' ],
-                        { foo: 'bar', alpha: { one: 1, two: 2 },  baz: 'quux' }
-                    ]);
+                test.equals(false, data.is_response);
+                test.equals(false, data.is_fault);
+                test.equals('test.method', data.method);
 
-                    var xml = msg.xml();
-
-                    util.debug(xml);
-
-                    var parser = new XMLRPC.SaxParser({ 
-                        onDone: function () {
-                            util.debug("DATA " + util.inspect(parser.data, false, 10));
-                            next();
-                        },
-                        onError: function () {
-                            util.debug("ERROR");
-                        }
-                    }); 
-                    parser.parseString(xml);
-
-                }, function (next) {
-
-                    // util.debug(msg.xml());
-                    
-                    var resp = new XMLRPC.Response([ 'one', 'two', 'three' ]);
-                    var parser = new XMLRPC.SaxParser({ 
-                        onDone: function () {
-                            util.debug("RESPONSE " + util.inspect(parser.data, false, 10));
-                            next();
-                        },
-                        onError: function () {
-                            util.debug("ERROR");
-                        }
-                    }); 
-                    parser.parseString(resp.xml());
-
-                }, function (next) {
-
-                    var fault = new XMLRPC.Fault([ 'one', 'two', 'three' ]);
-                    var parser = new XMLRPC.SaxParser({ 
-                        onDone: function () {
-                            util.debug("FAULT " + util.inspect(parser.data, false, 10));
-                            next();
-                        },
-                        onError: function () {
-                            util.debug("ERROR");
-                        }
-                    }); 
-                    parser.parseString(fault.xml());
+                deep_equal(test,
+                    [ 
+                        'assumed string', 
+                        'explicit string', 
+                        1234, 
+                        -1234, 
+                        -12.34, 
+                        new Date("Fri, 18 Mar 2011 01:23:45 GMT"),
+                        new Date("Wed, 16 Mar 2011 02:34:56 GMT"),
+                        "testing12",
+                        [ 12, "Egypt", false, -31 ],
+                        { lowerBound: 18, upperBound: 139 }
+                    ], 
+                    data.params
+                );
                 
-                }
-            ], 
-            function (err) {
-                if (!err) {
-                    test.done();
-                } else {
-                    util.log('FAILURE ' + err);
-                }
-            }
-        );
+                test.done();
+            },
 
+            onError: function (msg) {
+                test.ok(false, msg);
+            }
+
+        });
+
+        parser.parseString(test_xml);
+
+    },
+
+    "XML-RPC response can be parsed": function (test) {
+
+        var test_xml = [
+            "<methodResponse>",
+            "<params>", "<param>",
+            "<struct>",
+            "   <member>",
+            "      <name>lowerBound</name>",
+            "      <value><i4>18</i4></value>",
+            "      </member>",
+            "   <member>",
+            "      <name>upperBound</name>",
+            "      <value><i4>139</i4></value>",
+            "      </member>",
+            "   </struct>",
+            "</param>", "</params>",
+            "</methodResponse>"
+        ].join("\n");
+
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.equals(true, data.is_response);
+                deep_equal(test, [{ lowerBound: 18, upperBound: 139 }], data.params);
+                test.done();
+            },
+            onError: function (msg) {
+                test.ok(false, msg);
+            }
+        });
+
+        parser.parseString(test_xml);
+
+    },
+
+    "XML-RPC fault can be parsed": function (test) {
+
+        var test_xml = [
+            '<?xml version="1.0"?>',
+            "<methodResponse>",
+            "   <fault>",
+            "      <value>",
+            "         <struct>",
+            "            <member>",
+            "               <name>faultCode</name>",
+            "               <value><int>4</int></value>",
+            "               </member>",
+            "            <member>",
+            "               <name>faultString</name>",
+            "               <value><string>Too many parameters.</string></value>",
+            "               </member>",
+            "            </struct>",
+            "         </value>",
+            "      </fault>",
+            "   </methodResponse>"
+        ].join("\n");
+
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.equals(true, data.is_fault);
+                deep_equal(test, [{ 
+                    faultCode: 4, 
+                    faultString: "Too many parameters." 
+                }], data.params);
+                test.done();
+            },
+            onError: function (msg) {
+                test.ok(false, msg);
+            }
+        });
+
+        parser.parseString(test_xml);
+
+    },
+
+    "XML-RPC call roundtrip, built and parsed": function (test) {
+
+        var params = [
+            'assumed string', 
+            'explicit string', 
+            1234, 
+            -1234, 
+            -12.34, 
+            new Date("Fri, 18 Mar 2011 01:23:45 GMT"),
+            new Date("Wed, 16 Mar 2011 02:34:56 GMT"),
+            "testing12",
+            [ 12, "Egypt", false, -31 ],
+            { lowerBound: 18, upperBound: 139 }
+        ];
+
+        var test_xml = new XMLRPC.Call('test.alpha', params).xml();
+
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.equals(false, data.is_response);
+                test.equals(false, data.is_fault);
+                test.equals('test.alpha', data.method);
+                deep_equal(test, params, data.params);
+                test.done();
+            },
+            onError: function (msg) {
+                test.ok(false, msg);
+            }
+        });
+
+        parser.parseString(test_xml);
+
+    },
+
+    "XML-RPC response roundtrip, built and parsed": function (test) {
+        var params = [{ lowerBound: 18, upperBound: 139 }];
+        var test_xml = new XMLRPC.Response(params).xml();
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.equals(true, data.is_response);
+                deep_equal(test, params, data.params);
+                test.done();
+            },
+            onError: function (msg) {
+                test.ok(false, msg);
+            }
+        });
+        parser.parseString(test_xml);
+    },
+
+    "XML-RPC fault roundtrip, built and parsed": function (test) {
+        var params = [{ 
+            faultCode: 4, 
+            faultString: "Too many parameters." 
+        }];
+        var test_xml = new XMLRPC.Fault(4, "Too many parameters.").xml();
+        var parser = new XMLRPC.SaxParser({
+            onDone: function (data) {
+                test.equals(true, data.is_fault);
+                deep_equal(test, params, data.params);
+                test.done();
+            },
+            onError: function (msg) {
+                test.ok(false, msg);
+            }
+        });
+        parser.parseString(test_xml);
     }
 
 });
