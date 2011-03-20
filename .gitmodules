@@ -4,9 +4,6 @@
 [submodule "deps/async"]
 	path = deps/async
 	url = https://github.com/caolan/async.git
-[submodule "deps/alfred"]
-	path = deps/alfred
-	url = https://github.com/pgte/alfred.git
 [submodule "deps/express"]
 	path = deps/express
 	url = http://github.com/visionmedia/express.git
@@ -16,3 +13,9 @@
 [submodule "deps/node-xml"]
 	path = deps/node-xml
 	url = https://github.com/robrighter/node-xml
+[submodule "deps/backbone"]
+	path = deps/backbone
+	url = https://github.com/documentcloud/backbone.git
+[submodule "deps/alfred"]
+	path = deps/alfred
+	url = https://github.com/pgte/alfred.git

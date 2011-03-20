@@ -29,7 +29,7 @@ var deep_equal = function (test, expected, result) {
 
 module.exports = nodeunit.testCase({
 
-    "XML-RPC call can be parsed": function (test) {
+    "Call can be parsed": function (test) {
 
         var test_xml = [
             "<methodCall>",
@@ -105,7 +105,7 @@ module.exports = nodeunit.testCase({
 
     },
 
-    "XML-RPC response can be parsed": function (test) {
+    "Response can be parsed": function (test) {
 
         var test_xml = [
             "<methodResponse>",
@@ -140,7 +140,7 @@ module.exports = nodeunit.testCase({
 
     },
 
-    "XML-RPC fault can be parsed": function (test) {
+    "Fault can be parsed": function (test) {
 
         var test_xml = [
             '<?xml version="1.0"?>',
@@ -181,7 +181,7 @@ module.exports = nodeunit.testCase({
 
     },
 
-    "XML-RPC call roundtrip, built and parsed": function (test) {
+    "Call roundtrip, built and parsed": function (test) {
 
         var params = [
             'assumed string', 
@@ -215,7 +215,7 @@ module.exports = nodeunit.testCase({
 
     },
 
-    "XML-RPC response roundtrip, built and parsed": function (test) {
+    "Response roundtrip, built and parsed": function (test) {
         var params = [{ lowerBound: 18, upperBound: 139 }];
         var test_xml = new XMLRPC.Response(params).xml();
         var parser = new XMLRPC.SaxParser({
@@ -231,7 +231,7 @@ module.exports = nodeunit.testCase({
         parser.parseString(test_xml).finish();
     },
 
-    "XML-RPC fault roundtrip, built and parsed": function (test) {
+    "Fault roundtrip, built and parsed": function (test) {
         var params = [{ 
             faultCode: 4, 
             faultString: "Too many parameters." 
@@ -251,7 +251,7 @@ module.exports = nodeunit.testCase({
         parser.parseString(test_xml).finish();
     },
 
-    "XML-RPC call with a struct containing implicit strings can be parsed": function (test) {
+    "Call with a struct containing implicit strings can be parsed": function (test) {
         var test_xml = [
             "<methodCall>",
             "<methodName>test.method</methodName>",
@@ -296,7 +296,7 @@ module.exports = nodeunit.testCase({
         parser.parseString(test_xml).finish();
     },
 
-    "XML-RPC parsing fails with an error on incomplete input": function (test) {
+    "Parsing fails with an error on incomplete input": function (test) {
         var test_xml = [
             "<methodResponse>",
             "<params>", "<param>",
