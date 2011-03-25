@@ -16,8 +16,8 @@ var util = require('util'),
     XMLRPC = require('xmlrpc'),
     Backbone = require('backbone'),
     Models = require('rsscloud/models'),
-    LocmemSync = require('rsscloud/models/locmem-sync').LocmemSync,
-    AlfredSync = require('rsscloud/models/alfred-sync').AlfredSync;
+    LocmemSync = require('rsscloud/models/sync/locmem').LocmemSync,
+    AlfredSync = require('rsscloud/models/sync/alfred').AlfredSync;
 
 var test_db_path = __dirname + '/data';
 
@@ -31,7 +31,7 @@ var feed_urls = [
     'http://example.com/baz.rss'
 ];
 
-var client_ips = [
+var client_addrs = [
     '127.0.0.1',
     '192.168.123.10',
     '10.0.1.20',
@@ -55,12 +55,11 @@ module.exports = nodeunit.testCase({
                 });
             },
             function (next) {
-                // $this.sync = new AlfredSync({ path: test_db_path })
-                $this.sync = new LocmemSync();
+                $this.sync = new AlfredSync({ path: test_db_path })
+                // $this.sync = new LocmemSync();
                 $this.sync.open(
                     function (err, sync) {
-                        Models.NotificationRequest.prototype.sync = sync;
-                        Models.NotificationRequestCollection.prototype.sync = sync;
+                        Backbone.sync = sync;
                         next();
                     }, 
                     function (err) { test.ok(false, "no sync available"); }
@@ -93,13 +92,13 @@ module.exports = nodeunit.testCase({
         var $this = this;
 
         var test_requests = [
-            { client_ip: client_ips[0], feed_url: feed_urls[0] }, 
-            { client_ip: client_ips[1], feed_url: feed_urls[0] }, 
-            { client_ip: client_ips[2], feed_url: feed_urls[0] }, 
-            { client_ip: client_ips[3], feed_url: feed_urls[1] }, 
-            { client_ip: client_ips[4], feed_url: feed_urls[1] }, 
-            { client_ip: client_ips[5], feed_url: feed_urls[2] }, 
-            { client_ip: client_ips[6], feed_url: feed_urls[3] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[0] }, 
+            { client_addr: client_addrs[1], feed_url: feed_urls[0] }, 
+            { client_addr: client_addrs[2], feed_url: feed_urls[0] }, 
+            { client_addr: client_addrs[3], feed_url: feed_urls[1] }, 
+            { client_addr: client_addrs[4], feed_url: feed_urls[1] }, 
+            { client_addr: client_addrs[5], feed_url: feed_urls[2] }, 
+            { client_addr: client_addrs[6], feed_url: feed_urls[3] }, 
         ];
 
         async.waterfall([
@@ -116,12 +115,12 @@ module.exports = nodeunit.testCase({
 
             // Fetch by feed URL and compare against expected results
             function (next) {
-                var expected = [ client_ips[0], client_ips[1], client_ips[2] ];
+                var expected = [ client_addrs[0], client_addrs[1], client_addrs[2] ];
                 var result = [];
                 $this.requests.fetchByFeedUrl(
                     feed_urls[0],
                     function (r) { 
-                        result.push(r.get('client_ip')); 
+                        result.push(r.get('client_addr')); 
                     }, 
                     function () {
                         result.sort(); expected.sort();
@@ -141,13 +140,13 @@ module.exports = nodeunit.testCase({
         var $this = this;
 
         var test_requests = [
-            { client_ip: client_ips[0], feed_url: feed_urls[0] }, 
-            { client_ip: client_ips[0], feed_url: feed_urls[1] }, 
-            { client_ip: client_ips[0], feed_url: feed_urls[2] }, 
-            { client_ip: client_ips[1], feed_url: feed_urls[3] }, 
-            { client_ip: client_ips[1], feed_url: feed_urls[4] }, 
-            { client_ip: client_ips[2], feed_url: feed_urls[5] }, 
-            { client_ip: client_ips[3], feed_url: feed_urls[6] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[0] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[1] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[2] }, 
+            { client_addr: client_addrs[1], feed_url: feed_urls[3] }, 
+            { client_addr: client_addrs[1], feed_url: feed_urls[4] }, 
+            { client_addr: client_addrs[2], feed_url: feed_urls[5] }, 
+            { client_addr: client_addrs[3], feed_url: feed_urls[6] }, 
         ];
 
         async.waterfall([
@@ -167,7 +166,7 @@ module.exports = nodeunit.testCase({
                 var expected = [ feed_urls[0], feed_urls[1], feed_urls[2] ];
                 var result = [];
                 $this.requests.fetchByClientIp(
-                    client_ips[0],
+                    client_addrs[0],
                     function (r) { 
                         result.push(r.get('feed_url')); 
                     }, 
@@ -193,13 +192,13 @@ module.exports = nodeunit.testCase({
         var older_than_query = now - max_age;
 
         var test_requests = [
-            { client_ip: client_ips[0], feed_url: feed_urls[0] }, 
-            { client_ip: client_ips[0], feed_url: feed_urls[1] }, 
-            { client_ip: client_ips[0], feed_url: feed_urls[2] }, 
-            { client_ip: client_ips[1], feed_url: feed_urls[3] }, 
-            { client_ip: client_ips[1], feed_url: feed_urls[4] }, 
-            { client_ip: client_ips[2], feed_url: feed_urls[5] }, 
-            { client_ip: client_ips[3], feed_url: feed_urls[6] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[0] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[1] }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[2] }, 
+            { client_addr: client_addrs[1], feed_url: feed_urls[3] }, 
+            { client_addr: client_addrs[1], feed_url: feed_urls[4] }, 
+            { client_addr: client_addrs[2], feed_url: feed_urls[5] }, 
+            { client_addr: client_addrs[3], feed_url: feed_urls[6] }, 
         ];
 
         // Set up an artificial timeline for these requests.
@@ -274,7 +273,7 @@ module.exports = nodeunit.testCase({
                 requests_1 = new Models.NotificationRequestCollection();
                 requests_1.create(
                     { 
-                        client_ip: '192.168.123.10', 
+                        client_addr: '192.168.123.10', 
                         feed_url: 'http://scripting.com/rss.xml'
                     }, 
                     {
@@ -292,7 +291,7 @@ module.exports = nodeunit.testCase({
 
                 request_2 = new Models.NotificationRequest({
                     collection: requests_1,
-                    client_ip: '127.0.0.1', 
+                    client_addr: '127.0.0.1', 
                     feed_url: 'http://decafbad.com/blog/feed',
                 });
 
@@ -307,7 +306,7 @@ module.exports = nodeunit.testCase({
 
                 request_3 = new Models.NotificationRequest({ 
                     collection: requests_1,
-                    client_ip: '192.168.10.20', 
+                    client_addr: '192.168.10.20', 
                     protocol: 'http-post', path: '/feed/notify',
                     feed_url: 'http://slashdot.org/feed' 
                 });
@@ -326,17 +325,17 @@ module.exports = nodeunit.testCase({
 
                 request_4 = requests_2.get(request_3.id);
 
-                test.equal(request_3.get('client_ip'), '192.168.10.20');
-                test.equal(request_4.get('client_ip'), '192.168.10.20');
+                test.equal(request_3.get('client_addr'), '192.168.10.20');
+                test.equal(request_4.get('client_addr'), '192.168.10.20');
 
-                request_3.set({ client_ip: '192.168.10.40' });
+                request_3.set({ client_addr: '192.168.10.40' });
                 request_3.save({}, { success: function (model) { next(); } });
 
             }, 
             function (next) {
 
-                test.equal(request_3.get('client_ip'), '192.168.10.40');
-                test.equal(request_4.get('client_ip'), '192.168.10.20');
+                test.equal(request_3.get('client_addr'), '192.168.10.40');
+                test.equal(request_4.get('client_addr'), '192.168.10.20');
 
                 request_4.fetch({success: function (collection) { next(); }});
 
@@ -356,7 +355,7 @@ module.exports = nodeunit.testCase({
             }, 
             function (next) {
 
-                test.equal(request_4.get('client_ip'), '192.168.10.40');
+                test.equal(request_4.get('client_addr'), '192.168.10.40');
 
                 old_id = request_1.id;
                 request_1.destroy({success: function (collection) { next(); }});
@@ -374,7 +373,7 @@ module.exports = nodeunit.testCase({
                 test.equal(typeof(missing), 'undefined');
                 
                 /*
-                var s = AlfredSync.db.notifications.find({ client_ip: { $eq: '127.0.0.1' } }).stream();
+                var s = AlfredSync.db.notifications.find({ client_addr: { $eq: '127.0.0.1' } }).stream();
                 s.on('record', function (it) {
                     util.log("FOUND " + util.inspect(it));
                 });
