@@ -19,3 +19,12 @@
 [submodule "deps/alfred"]
 	path = deps/alfred
 	url = https://github.com/pgte/alfred.git
+[submodule "deps/step"]
+	path = deps/step
+	url = https://github.com/creationix/step.git
+[submodule "deps/carrier"]
+	path = deps/carrier
+	url = https://github.com/pgte/carrier.git
+[submodule "deps/node-crc"]
+	path = deps/node-crc
+	url = https://github.com/alexgorbatchev/node-crc.git
