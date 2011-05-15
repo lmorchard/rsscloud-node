@@ -11,5 +11,8 @@ require(__dirname + "/lib/setup")
 var RSSCloud = require('rsscloud');
 
 var server = new RSSCloud.PingHub({
+    //sync: new AlfredSync({
+    //    path: __dirname + '/data'
+    //})
 });
-server.listen();    
+server.listen();

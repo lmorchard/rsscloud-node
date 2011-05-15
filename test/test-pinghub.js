@@ -1,7 +1,6 @@
 // ## tests for pinghub
 //
-// TODO: Refactor http module mocks into a single reusable object. It's all
-// cut-and-paste reuse right now.
+// TODO: Refactor HTTP mock objects. Lots of copypasta reuse and awkward crap.
 //
 require(__dirname + "/../lib/setup")
     .ext( __dirname + "/../lib")
@@ -118,27 +117,28 @@ module.exports = nodeunit.testCase({
         // Replace the original notify method with a mock wrapper.
         $this.pinghub.notifyOneViaXMLRPC = function (cb, nreq, challenge) {
             var $this = this;
-            var res_cb, parser;
+            var res_cb;
 
             // Set up some stub response events that fail.
             var res_handlers = {
                 data: function (chunk) { test.ok(fail); },
                 end: function () { test.ok(fail); }
             };
+            var m_res = {
+                statusCode: 200,
+                on: function (event, handler) { 
+                    res_handlers[event] = handler; 
+                }
+            };
 
             // Set up a parser for the expected XML-RPC call.
-            parser = new XMLRPC.SaxParser({
+            var parser = new XMLRPC.SaxParser({
                 onDone: function (data) {
                     // Verify the contents of the call.
                     test.equal('notify', data.method);
                     test.deepEqual([ expected_url ], data.params);
                     // Mock up a successful request with on method.
-                    res_cb({
-                        statusCode: 200,
-                        on: function (event, handler) { 
-                            res_handlers[event] = handler; 
-                        }
-                    });
+                    res_cb(m_res);
                     // Send back response data.
                     res_handlers.data(new XMLRPC.Response([response_msg]).xml());
                     res_handlers.end();
@@ -151,20 +151,28 @@ module.exports = nodeunit.testCase({
                 }
             });
 
-            // Finally, allow the original notification method to work.
-            PingHub.prototype.notifyOneViaXMLRPC.call($this, cb, nreq, challenge, {
-                request: function (options, cb) {
-                    // Record that a request was performed.
-                    did_perform_request = true;
+            // Mock up the specific request methods used by pinghub
+            var m_req = {
+                on: function (ev_name, cb) {
                     // Hang onto the callback to respond later
-                    res_cb = cb;
-                    // Mock up the specific request methods used by pinghub
-                    return {
-                        write: function (data) { parser.parseString(data); },
-                        end: function () { parser.finish(); }
-                    };
+                    if ('response' == ev_name) { res_cb = cb; }
                 },
-            });
+                write: function (data) { parser.parseString(data); },
+                end: function () {
+                    did_perform_request = true;
+                    parser.finish(); 
+                }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { return m_req; }
+            };
+            var m_http = {
+                createClient: function (port, host) { return m_client; }
+            };
+
+            // Finally, allow the original notification method to work.
+            PingHub.prototype.notifyOneViaXMLRPC.call($this, cb, nreq, challenge, m_http);
         };
 
         var cb = function (err, result) {
@@ -207,36 +215,43 @@ module.exports = nodeunit.testCase({
                 end: function () { test.ok(fail); }
             };
 
+            // Mock up the specific request methods used by pinghub
+            var m_res = {
+                statusCode: 200,
+                on: function (event, handler) { 
+                    res_handlers[event] = handler; 
+                }
+            };
+            var m_req = {
+                on: function (ev_name, cb) {
+                    // Hang onto the callback to respond later
+                    if ('response' == ev_name) { res_cb = cb; }
+                },
+                write: function (chunk) { req_data += chunk; },
+                end: function () {
+                    did_perform_request = true;
+                    // Verify the contents of the call.
+                    var params = querystring.parse(req_data);
+                    test.equal(expected_url, params.url);
+                    // Mock up a successful request with on method.
+                    res_cb(m_res);
+                    // Send back response data.
+                    res_handlers.data(response_msg);
+                    res_handlers.end();
+                    did_receive_notification = true;
+                }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { return m_req; }
+            };
+            var m_http = {
+                createClient: function (port, host) { return m_client; }
+            };
+
             // Finally, allow the original notification method to work, with a
             // substitute for the usual http module.
-            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, {
-                request: function (options, cb) {
-                    // Record that a request was performed.
-                    did_perform_request = true;
-                    // Hang onto the callback to respond later
-                    res_cb = cb;
-                    // Mock up the specific request methods used by pinghub
-                    return {
-                        write: function (chunk) { req_data += chunk; },
-                        end: function () {
-                            // Verify the contents of the call.
-                            var params = querystring.parse(req_data);
-                            test.equal(expected_url, params.url);
-                            // Mock up a successful request with on method.
-                            res_cb({
-                                statusCode: 200,
-                                on: function (event, handler) { 
-                                    res_handlers[event] = handler; 
-                                }
-                            });
-                            // Send back response data.
-                            res_handlers.data(response_msg);
-                            res_handlers.end();
-                            did_receive_notification = true;
-                        }
-                    };
-                },
-            });
+            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, m_http);
         };
 
         var cb = function (err, result) {
@@ -271,46 +286,52 @@ module.exports = nodeunit.testCase({
         // Replace the original notify method with a mock wrapper.
         $this.pinghub.notifyOneViaHTTPPOST = function (cb, nreq, challenge) {
             var $this = this;
-            var res_cb, req_data = '';
+            var res_cb, req_data = '', req_path;
 
             // Set up some stub response events that fail.
             var res_handlers = {
                 data: function (chunk) { test.ok(fail); },
                 end: function () { test.ok(fail); }
             };
+            var m_res = {
+                statusCode: 200,
+                on: function (event, handler) { 
+                    res_handlers[event] = handler; 
+                }
+            };
+            var m_req = {
+                on: function (ev_name, cb) {
+                    if ('response' == ev_name) { res_cb = cb; }
+                },
+                write: function (chunk) { req_data += chunk; },
+                end: function () {
+                    did_perform_request = true;
+                    // Verify the contents of the call.
+                    var params = querystring.parse(req_path.split('?')[1]);
+                    test.equal(expected_url, params.url);
+                    // Mock up a successful request with on method.
+                    res_cb(m_res);
+                    // Send back response data.
+                    res_handlers.data(querystring.stringify({
+                        challenge: params.challenge
+                    }));
+                    res_handlers.end();
+                    did_receive_notification = true;
+                }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { 
+                    req_path = path; return m_req; 
+                }
+            };
+            var m_http = {
+                createClient: function (port, host) { return m_client; }
+            };
 
             // Finally, allow the original notification method to work, with a
             // replacement for the http module.
-            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, {
-                request: function (options, cb) {
-                    // Record that a request was performed.
-                    did_perform_request = true;
-                    // Hang onto the callback to respond later
-                    res_cb = cb;
-                    // Mock up the specific request methods used by pinghub
-                    return {
-                        write: function (chunk) { req_data += chunk; },
-                        end: function () {
-                            // Verify the contents of the call.
-                            var params = querystring.parse(options.path.split('?')[1]);
-                            test.equal(expected_url, params.url);
-                            // Mock up a successful request with on method.
-                            res_cb({
-                                statusCode: 200,
-                                on: function (event, handler) { 
-                                    res_handlers[event] = handler; 
-                                }
-                            });
-                            // Send back response data.
-                            res_handlers.data(querystring.stringify({
-                                challenge: params.challenge
-                            }));
-                            res_handlers.end();
-                            did_receive_notification = true;
-                        }
-                    };
-                },
-            });
+            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, m_http);
         };
 
         var cb = function (err, result) {
@@ -345,46 +366,52 @@ module.exports = nodeunit.testCase({
         // Replace the original notify method with a mock wrapper.
         $this.pinghub.notifyOneViaHTTPPOST = function (cb, nreq, challenge) {
             var $this = this;
-            var res_cb, req_data = '';
+            var res_cb, req_data = '', req_path;
 
             // Set up some stub response events that fail.
             var res_handlers = {
                 data: function (chunk) { test.ok(fail); },
                 end: function () { test.ok(fail); }
             };
+            var m_res = {
+                statusCode: 200,
+                on: function (event, handler) { 
+                    res_handlers[event] = handler; 
+                }
+            };
+            var m_req = {
+                on: function (ev_name, cb) {
+                    if ('response' == ev_name) { res_cb = cb; }
+                },
+                write: function (chunk) { req_data += chunk; },
+                end: function () {
+                    did_perform_request = true;
+                    // Verify the contents of the call.
+                    var params = querystring.parse(req_path.split('?')[1]);
+                    test.equal(expected_url, params.url);
+                    did_receive_notification = true;
+                    // Mock up a successful request with on method.
+                    res_cb(m_res);
+                    // Send back response data.
+                    res_handlers.data(querystring.stringify({
+                        challenge: "THIS IS NOT THE CHALLENGE"
+                    }));
+                    res_handlers.end();
+                }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { 
+                    req_path = path; return m_req; 
+                }
+            };
+            var m_http = {
+                createClient: function (port, host) { return m_client; }
+            };
 
             // Finally, allow the original notification method to work, with a
             // replacement for the http module.
-            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, {
-                request: function (options, cb) {
-                    // Record that a request was performed.
-                    did_perform_request = true;
-                    // Hang onto the callback to respond later
-                    res_cb = cb;
-                    // Mock up the specific request methods used by pinghub
-                    return {
-                        write: function (chunk) { req_data += chunk; },
-                        end: function () {
-                            // Verify the contents of the call.
-                            var params = querystring.parse(options.path.split('?')[1]);
-                            test.equal(expected_url, params.url);
-                            did_receive_notification = true;
-                            // Mock up a successful request with on method.
-                            res_cb({
-                                statusCode: 200,
-                                on: function (event, handler) { 
-                                    res_handlers[event] = handler; 
-                                }
-                            });
-                            // Send back response data.
-                            res_handlers.data(querystring.stringify({
-                                challenge: "THIS IS NOT THE CHALLENGE"
-                            }));
-                            res_handlers.end();
-                        }
-                    };
-                },
-            });
+            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, m_http);
         };
 
         var cb = function (err, result) {
@@ -437,105 +464,137 @@ module.exports = nodeunit.testCase({
         // Replace the original notify method with a mock wrapper.
         $this.pinghub.notifyOneViaHTTPPOST = function (cb, nreq, challenge) {
             var $this = this;
-            var res_cb, req_data = '';
+            var res_cb, req_data = '', options = {};
 
             // Set up some stub response events that fail.
             var res_handlers = {
                 data: function (chunk) { test.ok(fail); },
                 end: function () { test.ok(fail); }
             };
+            var m_res = {
+                statusCode: 200,
+                on: function (event, handler) { 
+                    res_handlers[event] = handler; 
+                }
+            };
+            var m_req = {
+                on: function (ev_name, cb) {
+                    if ('response' == ev_name) { res_cb = cb; }
+                },
+                write: function (chunk) { req_data += chunk; },
+                end: function () {
+                    var params = querystring.parse(req_data || options.path.split('?')[1]);
+                    did_perform_request = true;
+
+                    // Record the ping as seen.
+                    var ping = [ 
+                        options.host, options.port, options.path, 'http-post', null,
+                        params.url 
+                    ];
+                    pings_seen.push(ping);
+
+                    res_cb({
+                        statusCode: 200,
+                        on: function (event, handler) { 
+                            res_handlers[event] = handler; 
+                        }
+                    });
+                    res_handlers.data(querystring.stringify({
+                        challenge: params.challenge
+                    }));
+                    res_handlers.end();
+
+                }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { 
+                    options.path = path; 
+                    options.method = method;
+                    return m_req; 
+                }
+            };
+            var m_http = {
+                createClient: function (port, host) { 
+                    options.port = port;
+                    options.host = host;
+                    return m_client; 
+                }
+            };
 
             // Finally, allow the original notification method to work, with a
             // replacement for the http module.
-            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, {
-                request: function (options, cb) {
-                    // Hang onto the callback to respond later
-                    res_cb = cb;
-                    // Mock up the specific request methods used by pinghub
-                    return {
-                        write: function (chunk) { req_data += chunk; },
-                        end: function () {
-                            var params = querystring.parse(req_data || options.path.split('?')[1]);
-
-                            // Record the ping as seen.
-                            var ping = [ 
-                                options.host, options.port, options.path, 'http-post', null,
-                                params.url 
-                            ];
-                            pings_seen.push(ping);
-
-                            res_cb({
-                                statusCode: 200,
-                                on: function (event, handler) { 
-                                    res_handlers[event] = handler; 
-                                }
-                            });
-                            res_handlers.data(querystring.stringify({
-                                challenge: params.challenge
-                            }));
-                            res_handlers.end();
-
-                        }
-                    };
-                },
-            });
+            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, m_http);
         };
 
         // Replace the original notify method with a mock wrapper.
         $this.pinghub.notifyOneViaXMLRPC = function (cb, nreq, challenge) {
             var $this = this;
-            var res_cb, parser;
+            var res_cb, options = {};
 
-            // Set up some stub response events that fail.
+            // Set up a parser for the expected XML-RPC call.
+            var parser = new XMLRPC.SaxParser({
+                onDone: function (data) {
+                    // Record the ping as seen.
+                    var ping = [ 
+                        options.host, options.port, options.path, 'xml-rpc', data.method,
+                        data.params[0]
+                    ];
+                    pings_seen.push(ping);
+
+                    // Mock up a successful request with on method.
+                    res_cb({
+                        statusCode: 200,
+                        on: function (event, handler) { 
+                            res_handlers[event] = handler; 
+                        }
+                    });
+                    // Send back response data.
+                    res_handlers.data(new XMLRPC.Response([response_msg]).xml());
+                    res_handlers.end();
+                    did_receive_xmlrpc_notification = true;
+                },
+                onError: function (msg) {
+                    // Bail on error.
+                    test.ok(false, msg);
+                    test.done();
+                }
+            });
             var res_handlers = {
                 data: function (chunk) { test.ok(fail); },
                 end: function () { test.ok(fail); }
             };
+            var m_res = {
+                statusCode: 200,
+                on: function (event, handler) { 
+                    res_handlers[event] = handler; 
+                }
+            };
+            var m_req = {
+                on: function (ev_name, cb) {
+                    if ('response' == ev_name) { res_cb = cb; }
+                },
+                write: function (data) { parser.parseString(data); },
+                end: function () { parser.finish(); }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { 
+                    options.path = path; 
+                    options.method = method;
+                    return m_req; 
+                }
+            };
+            var m_http = {
+                createClient: function (port, host) { 
+                    options.port = port;
+                    options.host = host;
+                    return m_client; 
+                }
+            };
 
             // Finally, allow the original notification method to work.
-            PingHub.prototype.notifyOneViaXMLRPC.call($this, cb, nreq, challenge, {
-                request: function (options, cb) {
-                    // Record that a request was performed.
-                    did_perform_request = true;
-                    // Hang onto the callback to respond later
-                    res_cb = cb;
-
-                    // Set up a parser for the expected XML-RPC call.
-                    parser = new XMLRPC.SaxParser({
-                        onDone: function (data) {
-                            // Record the ping as seen.
-                            var ping = [ 
-                                options.host, options.port, options.path, 'xml-rpc', data.method,
-                                data.params[0]
-                            ];
-                            pings_seen.push(ping);
-
-                            // Mock up a successful request with on method.
-                            res_cb({
-                                statusCode: 200,
-                                on: function (event, handler) { 
-                                    res_handlers[event] = handler; 
-                                }
-                            });
-                            // Send back response data.
-                            res_handlers.data(new XMLRPC.Response([response_msg]).xml());
-                            res_handlers.end();
-                            did_receive_xmlrpc_notification = true;
-                        },
-                        onError: function (msg) {
-                            // Bail on error.
-                            test.ok(false, msg);
-                            test.done();
-                        }
-                    });
-
-                    // Mock up the specific request methods used by pinghub
-                    return {
-                        write: function (data) { parser.parseString(data); },
-                        end: function () { parser.finish(); }
-                    };
-                },
-            });
+            PingHub.prototype.notifyOneViaXMLRPC.call($this, cb, nreq, challenge, m_http);
         };
 
         async.waterfall([
