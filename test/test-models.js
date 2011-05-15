@@ -98,7 +98,7 @@ module.exports = nodeunit.testCase({
             { client_addr: client_addrs[3], feed_url: feed_urls[1] }, 
             { client_addr: client_addrs[4], feed_url: feed_urls[1] }, 
             { client_addr: client_addrs[5], feed_url: feed_urls[2] }, 
-            { client_addr: client_addrs[6], feed_url: feed_urls[3] }, 
+            { client_addr: client_addrs[6], feed_url: feed_urls[3] } 
         ];
 
         async.waterfall([
@@ -136,7 +136,7 @@ module.exports = nodeunit.testCase({
         });
     },
 
-    "Notification requests can be fetched by client IP": function (test) {
+    "Notification requests can be fetched by client addr": function (test) {
         var $this = this;
 
         var test_requests = [
@@ -146,7 +146,7 @@ module.exports = nodeunit.testCase({
             { client_addr: client_addrs[1], feed_url: feed_urls[3] }, 
             { client_addr: client_addrs[1], feed_url: feed_urls[4] }, 
             { client_addr: client_addrs[2], feed_url: feed_urls[5] }, 
-            { client_addr: client_addrs[3], feed_url: feed_urls[6] }, 
+            { client_addr: client_addrs[3], feed_url: feed_urls[6] } 
         ];
 
         async.waterfall([
@@ -173,6 +173,52 @@ module.exports = nodeunit.testCase({
                     function () {
                         result.sort(); expected.sort();
                         test.deepEqual(expected, result);
+                        next();
+                    }
+                );
+            },
+
+        ], function (err) {
+            if (err) { test.ok(false, err); }
+            else { test.done(); }
+        });
+    },
+
+    "Notification requests can be fetched by client addr and feed URL": function (test) {
+        var $this = this;
+
+        var test_requests = [
+            { client_addr: client_addrs[0], feed_url: feed_urls[0], path: '/foo' }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[0], path: '/bar' }, 
+            { client_addr: client_addrs[0], feed_url: feed_urls[0], path: '/baz' }, 
+            { client_addr: client_addrs[1], feed_url: feed_urls[1], path: '/quux' }, 
+            { client_addr: client_addrs[2], feed_url: feed_urls[1], path: '/xyzzy' }, 
+            { client_addr: client_addrs[2], feed_url: feed_urls[2], path: '/a' }, 
+            { client_addr: client_addrs[3], feed_url: feed_urls[3], path: '/b' }
+        ];
+
+        async.waterfall([
+
+            // Create the initial set of requests.
+            function (next) {
+                async.forEach( test_requests, 
+                    function (item, fe_next) {
+                        $this.requests.create(item, { success: fe_next });
+                    }, 
+                    function () { next(); }
+                );
+            }, 
+
+            // Fetch by feed URL and compare against expected results
+            function (next) {
+                var expect = [ '/foo', '/bar', '/baz' ];
+                var result = [ ];
+                $this.requests.fetchByClientAddrAndFeedUrl(
+                    { client_addr: client_addrs[0], feed_urls: feed_urls[0] },
+                    function (r) { result.push(r.get('path')); }, 
+                    function () {
+                        result.sort(); expect.sort();
+                        test.deepEqual(expect, result);
                         next();
                     }
                 );
