@@ -165,7 +165,7 @@ module.exports = nodeunit.testCase({
             function (next) {
                 var expected = [ feed_urls[0], feed_urls[1], feed_urls[2] ];
                 var result = [];
-                $this.requests.fetchByClientIp(
+                $this.requests.fetchByClientAddr(
                     client_addrs[0],
                     function (r) { 
                         result.push(r.get('feed_url')); 
