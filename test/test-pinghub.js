@@ -164,7 +164,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_client = {
-                on: function (name, cb) { /* No-op */ },
+                on: function (name, cb) { },
                 request: function (method, path) { return m_req; }
             };
             var m_http = {
@@ -242,7 +242,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_client = {
-                on: function (name, cb) { /* No-op */ },
+                on: function (name, cb) { },
                 request: function (method, path) { return m_req; }
             };
             var m_http = {
@@ -320,7 +320,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_client = {
-                on: function (name, cb) { /* No-op */ },
+                on: function (name, cb) { },
                 request: function (method, path) { 
                     req_path = path; return m_req; 
                 }
@@ -400,7 +400,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_client = {
-                on: function (name, cb) { /* No-op */ },
+                on: function (name, cb) { },
                 request: function (method, path) { 
                     req_path = path; return m_req; 
                 }
@@ -507,7 +507,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_client = {
-                on: function (name, cb) { /* No-op */ },
+                on: function (name, cb) { },
                 request: function (method, path) { 
                     options.path = path; 
                     options.method = method;
@@ -578,7 +578,7 @@ module.exports = nodeunit.testCase({
                 end: function () { parser.finish(); }
             };
             var m_client = {
-                on: function (name, cb) { /* No-op */ },
+                on: function (name, cb) { },
                 request: function (method, path) { 
                     options.path = path; 
                     options.method = method;
@@ -640,6 +640,106 @@ module.exports = nodeunit.testCase({
             test.done();
         });
 
+    },
+
+    "Ensure repeat/refreshed registration results in just one updated record": function (test) {
+        var $this = this;
+
+        var result_counts = {};
+        var expect_counts = {};
+
+        var test_feed = 'http://scripting.com/rss.xml'
+        var cols = ['client_addr','port','path','protocol','notify_procedure','feed_url'];
+        var rows = [
+            ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '9000', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '9000', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '9000', 'foo',   'http-post', null, test_feed], 
+            ['decafbad.com', '9000', 'foo',   'http-post', null, test_feed], 
+            ['example.com',  '80',   'blah',  'http-post', null, test_feed]
+        ];
+        var test_registrations = [];
+        for (var i=0,row; row=rows[i]; i++) {
+
+            var r = { uniq: row.join('$') };
+            result_counts[r.uniq] = 0;
+            expect_counts[r.uniq] = 1;
+       
+            for (var j=0,col; col=cols[j]; j++) { r[col] = row[j]; }
+            test_registrations.push(r);
+
+        }
+
+        // Mock out verifyFeedExists to avoid a real HTTP request
+        $this.pinghub.verifyFeedExists = function (cb, feed_url) { cb(null); }
+
+        // Wrap notifyOneViaXMLRPC with a minimally functional http mock
+        $this.pinghub.notifyOneViaHTTPPOST = function (cb, nreq, challenge) {
+            var $this = this;
+            var res_cb;
+
+            var res_handlers = { };
+            var m_res = {
+                statusCode: 200,
+                on: function (event,handler) { res_handlers[event]=handler; }
+            };
+            var m_req = {
+                on: function (ev_name, cb) {
+                    if ('response' == ev_name) { res_cb = cb; }
+                },
+                write: function (chunk) { },
+                end: function () { res_cb(m_res); res_handlers.end(); }
+            };
+            var m_client = {
+                on: function (name, cb) { /* No-op */ },
+                request: function (method, path) { return m_req; }
+            };
+            var m_http = {
+                createClient: function (port, host) { return m_client; }
+            };
+
+            PingHub.prototype.notifyOneViaHTTPPOST.call($this, cb, nreq, challenge, m_http);
+        };
+
+        async.waterfall([
+
+            // Register notifications for each test item.
+            function (wf_next) {
+                async.forEachSeries(test_registrations, function (r, fe_next) {
+                    $this.pinghub.pleaseNotify(fe_next, 
+                        r.notify_procedure, r.port, r.path, r.protocol, 
+                        [ r.feed_url ], r.client_addr, false);
+                }, wf_next);
+            },
+
+            // Iterate through all notifications for the test feed, count the uniques.
+            function (wf_next) {
+                $this.pinghub.notification_requests.fetchByFeedUrl(
+                    test_feed,
+                    function (item) {
+                        var uniq = _(cols)
+                            .map(function (v) { return item.get(v) })
+                            .join('$');
+                        if (!result_counts[uniq]) { result_counts[uniq] = 1; }
+                        else { result_counts[uniq]++; }
+                    },
+                    wf_next
+                );
+            },
+
+            // Compare expected counts with result counts.
+            function (wf_next) {
+                test.deepEqual(expect_counts, result_counts);
+                wf_next();
+            }
+
+        ], function (err) { 
+            if (err) { test.ok(false, err); }        
+            test.done();
+        });
+    
     }/*,
 
     "Ping notification via HTTP POST with un-met challenge fails": function (test) {
