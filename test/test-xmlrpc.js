@@ -53,6 +53,8 @@ module.exports = nodeunit.testCase({
             "      </data>",
             "   </array>",
             "</param>",
+            // This broke things, at one point, due to <value><array>:
+            "<param>\r\n\t\t\t<value><array>\r\t\t\t\t<data>\r\t\t\t\t\t<value>http://decafbad.com/blog/feed</value>\r\t\t\t\t\t</data>\r\t\t\t\t</array></value>\r\n\t\t\t</param>\r\n",
             "<param>",
             "<struct>",
             "   <member>",
@@ -65,9 +67,21 @@ module.exports = nodeunit.testCase({
             "      </member>",
             "   </struct>",
             "</param>",
+            "<param><value>",
+            "<struct>",
+            "   <member>",
+            "      <name>lowerBound</name>",
+            "      <value><i4>18</i4></value>",
+            "      </member>",
+            "   <member>",
+            "      <name>upperBound</name>",
+            "      <value><i4>139</i4></value>",
+            "      </member>",
+            "   </struct>",
+            "</value></param>",
             "</params>",
             "</methodCall>"
-        ].join("\n");
+        ].join("\r");
 
         var parser = new XMLRPC.SaxParser({
             onDone: function (data) {
@@ -86,6 +100,8 @@ module.exports = nodeunit.testCase({
                         new Date("Wed, 16 Mar 2011 02:34:56 GMT"),
                         "testing12",
                         [ 12, "Egypt", false, -31 ],
+                        [ "http://decafbad.com/blog/feed" ],
+                        { lowerBound: 18, upperBound: 139 },
                         { lowerBound: 18, upperBound: 139 }
                     ], 
                     data.params
