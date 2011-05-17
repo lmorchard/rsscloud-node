@@ -5,3 +5,4 @@ test/test-data
 logs
 .monitor
 nodemon-ignore
+node_modules/
