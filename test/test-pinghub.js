@@ -1,27 +1,22 @@
 // ## tests for pinghub
 //
-// TODO: Refactor HTTP mock objects. Lots of copypasta reuse and awkward crap.
+// TODO: Refactor HTTP mock objects into reusable class(es). Lots of copypasta reuse and awkward crap.
 //
-require(__dirname + "/../lib/setup")
-    .ext( __dirname + "/../lib")
-    .ext( __dirname + "/../extlib")
-    .ext( __dirname + "/../deps")
-    .ext( __dirname + "/../deps/express/support");
-
 var util = require('util'),
     fs = require('fs'),
     _ = require('underscore'),
     nodeunit = require('nodeunit'),
     assert = require('assert'),
     async = require('async'),
-    XMLRPC = require('xmlrpc'),
     url = require('url'),
     querystring = require('querystring'),
     Backbone = require('backbone'),
-    Models = require('rsscloud/models'),
-    LocmemSync = require('rsscloud/models/sync/locmem').LocmemSync,
-    AlfredSync = require('rsscloud/models/sync/alfred').AlfredSync,
-    PingHub = require('rsscloud/pinghub').PingHub;
+    RSSCloud = require('rsscloud'),
+    XMLRPC = RSSCloud.xmlrpc,
+    Models = RSSCloud.Models,
+    LocmemSync = RSSCloud.Models.Sync.LocmemSync,
+    AlfredSync = RSSCloud.Models.Sync.AlfredSync,
+    PingHub = RSSCloud.PingHub;
 
 var test_db_path = __dirname + '/data';
 
@@ -153,6 +148,7 @@ module.exports = nodeunit.testCase({
 
             // Mock up the specific request methods used by pinghub
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     // Hang onto the callback to respond later
                     if ('response' == ev_name) { res_cb = cb; }
@@ -223,6 +219,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     // Hang onto the callback to respond later
                     if ('response' == ev_name) { res_cb = cb; }
@@ -265,7 +262,7 @@ module.exports = nodeunit.testCase({
         };
 
         $this.pinghub.pleaseNotify(cb, 'notify', '5337', '/notify', 'http-post', 
-            [ expected_url ], 'decafbad.com');
+            [ expected_url ], '127.0.0.1', false);
     },
 
     "Registering for a feed notification via HTTP POST with challenge works": function (test) {
@@ -300,6 +297,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     if ('response' == ev_name) { res_cb = cb; }
                 },
@@ -380,6 +378,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     if ('response' == ev_name) { res_cb = cb; }
                 },
@@ -478,6 +477,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     if ('response' == ev_name) { res_cb = cb; }
                 },
@@ -571,6 +571,7 @@ module.exports = nodeunit.testCase({
                 }
             };
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     if ('response' == ev_name) { res_cb = cb; }
                 },
@@ -686,6 +687,7 @@ module.exports = nodeunit.testCase({
                 on: function (event,handler) { res_handlers[event]=handler; }
             };
             var m_req = {
+                connection: { remoteAddress: '127.0.0.1' },
                 on: function (ev_name, cb) {
                     if ('response' == ev_name) { res_cb = cb; }
                 },

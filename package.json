@@ -8,9 +8,9 @@
     "url": "http://github.com/lmorchard/rsscloud-node.git"
   },
   "keywords": [ "rss", "rsscloud", "web" ],
+  "main": "./lib/rsscloud/index.js",
   "directories": { 
-      "lib": "./lib",
-      "bin": "./bin"
+      "lib": "./lib"
   },
   "dependencies": {
     "alfred": ">= 0.5.1",

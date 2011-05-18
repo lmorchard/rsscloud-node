@@ -4,5 +4,5 @@ test/data
 test/test-data
 logs
 .monitor
-nodemon-ignore
+.nodemonignore
 node_modules/

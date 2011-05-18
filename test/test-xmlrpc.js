@@ -1,19 +1,13 @@
 /**
  * Test out XMLRPC utils.
  */
-require(__dirname + "/../lib/setup")
-    .ext( __dirname + "/../lib")
-    .ext( __dirname + "/../extlib")
-    .ext( __dirname + "/../deps")
-    .ext( __dirname + "/../deps/express/support");
-
 var util = require('util'),
     fs = require('fs'),
     _ = require('underscore'),
     nodeunit = require('nodeunit'),
     assert = require('assert'),
     async = require('async'),
-    XMLRPC = require('xmlrpc');
+    XMLRPC = require('rsscloud').xmlrpc;
 
 var deep_equal = function (test, expected, result) {
     if (_(expected).isDate()) {

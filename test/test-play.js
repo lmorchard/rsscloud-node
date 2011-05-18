@@ -1,22 +1,14 @@
 /**
  *
  */
-require(__dirname + "/../lib/setup")
-    .ext( __dirname + "/../lib")
-    .ext( __dirname + "/../extlib")
-    .ext( __dirname + "/../deps")
-    .ext( __dirname + "/../deps/express/support");
-
-var 
-    util = require('util'),
+var util = require('util'),
     fs = require('fs'),
     nodeunit = require('nodeunit'),
     assert = require('assert'),
     async = require('async'),
-    XMLRPC = require('xmlrpc'),
     Alfred = require('alfred'),
     _ = require('underscore'),
-    XMLRPC = require('xmlrpc');
+    XMLRPC = require('rsscloud').xmlrpc;
 
 var test_db_fn = __dirname + '/data';
 

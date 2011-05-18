@@ -1,23 +1,18 @@
 /**
  * Test out XMLRPC utils.
  */
-require(__dirname + "/../lib/setup")
-    .ext( __dirname + "/../lib")
-    .ext( __dirname + "/../extlib")
-    .ext( __dirname + "/../deps")
-    .ext( __dirname + "/../deps/express/support");
-
 var util = require('util'),
     fs = require('fs'),
     _ = require('underscore'),
     nodeunit = require('nodeunit'),
     assert = require('assert'),
     async = require('async'),
-    XMLRPC = require('xmlrpc'),
+    RSSCloud = require('rsscloud'),
+    XMLRPC = RSSCloud.xmlrpc,
+    Models = RSSCloud.Models,
     Backbone = require('backbone'),
-    Models = require('rsscloud/models'),
-    LocmemSync = require('rsscloud/models/sync/locmem').LocmemSync,
-    AlfredSync = require('rsscloud/models/sync/alfred').AlfredSync;
+    LocmemSync = RSSCloud.Models.Sync.LocmemSync,
+    AlfredSync = RSSCloud.Models.Sync.AlfredSync;
 
 var test_db_path = __dirname + '/data';
 
