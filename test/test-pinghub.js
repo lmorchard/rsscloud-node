@@ -15,7 +15,7 @@ var util = require('util'),
     XMLRPC = RSSCloud.xmlrpc,
     Models = RSSCloud.Models,
     LocmemSync = RSSCloud.Models.Sync.LocmemSync,
-    AlfredSync = RSSCloud.Models.Sync.AlfredSync,
+    DirtySync = RSSCloud.Models.Sync.DirtySync,
     PingHub = RSSCloud.PingHub;
 
 var test_db_path = __dirname + '/data';
@@ -34,7 +34,8 @@ module.exports = nodeunit.testCase({
                 });
             },
             function (next) {
-                $this.sync = new AlfredSync({ path: test_db_path })
+                var dirty_fn = test_db_path + '/dirty-'+ (new Date().getTime()) + Math.random() +'.db'
+                $this.sync = new DirtySync({ path: dirty_fn })
                 // $this.sync = new LocmemSync();
                 $this.pinghub = new PingHub({ 
                     sync: $this.sync,
@@ -655,6 +656,9 @@ module.exports = nodeunit.testCase({
             ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
             ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
             ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '8080', 'resty', 'http-post', null, test_feed], 
+            ['decafbad.com', '9000', 'resty', 'http-post', null, test_feed], 
             ['decafbad.com', '9000', 'resty', 'http-post', null, test_feed], 
             ['decafbad.com', '9000', 'resty', 'http-post', null, test_feed], 
             ['decafbad.com', '9000', 'foo',   'http-post', null, test_feed], 

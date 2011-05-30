@@ -12,7 +12,7 @@ var util = require('util'),
     Models = RSSCloud.Models,
     Backbone = require('backbone'),
     LocmemSync = RSSCloud.Models.Sync.LocmemSync,
-    AlfredSync = RSSCloud.Models.Sync.AlfredSync;
+    DirtySync = RSSCloud.Models.Sync.DirtySync;
 
 var test_db_path = __dirname + '/data';
 
@@ -40,29 +40,34 @@ var client_addrs = [
 module.exports = nodeunit.testCase({
 
     setUp: function (callback) {
+
         var $this = this;
         async.waterfall([
-            function (next) {
-                // Create test data dir, if necessary
-                fs.stat(test_db_path, function (err, stats) {
-                    if (err) { fs.mkdir(test_db_path, 0777, next); } 
-                    else { next(); }
+            function (wf_next) {
+                fs.readdir(test_db_path, function (err, files) {
+                    if (!files) { return wf_next(); }
+                    async.forEach(files, function (fn, fe_next) {
+                        fs.unlink(test_db_path+'/'+fn, fe_next);
+                    }, wf_next);
                 });
-            },
-            function (next) {
-                $this.sync = new AlfredSync({ path: test_db_path })
+            }, 
+            function (wf_next) {
+                var dirty_fn = test_db_path + '/dirty-'+ (new Date().getTime()) + Math.random() +'.db'
+                $this.sync = new DirtySync({ path: dirty_fn })
                 // $this.sync = new LocmemSync();
                 $this.sync.open(
                     function (err, sync) {
                         Backbone.sync = sync;
-                        next();
+                        wf_next();
                     }, 
-                    function (err) { test.ok(false, "no sync available"); }
+                    function (err) { 
+                        test.ok(false, "no sync available"); 
+                    }
                 );
             },
-            function (next) {
+            function (wf_next) {
                 $this.requests = new Models.NotificationRequestCollection();
-                next();
+                wf_next();
             }
         ], function (err) {
             if (!err) { callback(); }
@@ -72,15 +77,7 @@ module.exports = nodeunit.testCase({
 
     tearDown: function (callback) {
         var $this = this;
-        $this.sync.close(function (err) {
-            fs.readdir(test_db_path, function (err, files) {
-                async.forEach(files, function (fn, fe_next) {
-                    fs.unlink(test_db_path+'/'+fn, fe_next);
-                }, function () {
-                    fs.rmdir(test_db_path, callback);
-                });
-            });
-        });
+        $this.sync.close(callback);
     },
 
     "Notification requests can be fetched by feed url": function (test) {
@@ -209,7 +206,7 @@ module.exports = nodeunit.testCase({
                 var expect = [ '/foo', '/bar', '/baz' ];
                 var result = [ ];
                 $this.requests.fetchByClientAddrAndFeedUrl(
-                    { client_addr: client_addrs[0], feed_urls: feed_urls[0] },
+                    { client_addr: client_addrs[0], feed_url: feed_urls[0] },
                     function (r) { result.push(r.get('path')); }, 
                     function () {
                         result.sort(); expect.sort();
@@ -291,24 +288,6 @@ module.exports = nodeunit.testCase({
 
         async.waterfall([
 
-            /*
-            function (next) {
-
-                //new_sync = new LocmemSync();
-                new_sync = new AlfredSync({ path: test_db_path });
-                new_sync.open(
-                    function (err, sync) {
-                        Models.NotificationRequest.prototype.sync = sync;
-                        Models.NotificationRequestCollection.prototype.sync = sync;
-                        next();
-                    }, 
-                    function (err) {
-                        test.ok(false, "no sync available");
-                    }
-                );
-
-            }, 
-            */
             function (next) {
 
                 requests_1 = new Models.NotificationRequestCollection();
@@ -413,32 +392,10 @@ module.exports = nodeunit.testCase({
                 var missing = requests_2.get(old_id);
                 test.equal(typeof(missing), 'undefined');
                 
-                /*
-                var s = AlfredSync.db.notifications.find({ client_addr: { $eq: '127.0.0.1' } }).stream();
-                s.on('record', function (it) {
-                    util.log("FOUND " + util.inspect(it));
-                });
-                s.on('end', function () {
-                    next(null);
-                });
-                */
-
-                /*
-                AlfredSync.db.notifications.scan(
-                    function (err, key, it) {
-                        if (!key) { return next(); }
-                        if (!it) { return; }
-                        util.debug('ALF ' + key + ": " + it.feed_url);
-                    }, true
-                );
-                */
                 next();
 
             }, 
 
-            //function (next) { AlfredSync.db.notifications.compact(next); },
-            //function (next) { AlfredSync('close', null, { success: next }); },
-            //function (next) { new_sync.close(next); },
             function (next) { test.done(); }
 
         ], function (err) {

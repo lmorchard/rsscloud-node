@@ -13,10 +13,11 @@
       "lib": "./lib"
   },
   "dependencies": {
-    "alfred": ">= 0.5.1",
     "async": ">= 0.1.8",
     "underscore": ">= 1.1.2",
-    "backbone": ">= 0.3.3",
+    "backbone": "0.3.3",
+    "dirty": "https://github.com/felixge/node-dirty/tarball/v0.9.3",
+    "backbone-dirty": "https://github.com/developmentseed/backbone-dirty/tarball/master",
     "carrier": ">= 0.1.1",
     "express": ">= 2.0.0",
     "connect": ">= 1.0.6",
