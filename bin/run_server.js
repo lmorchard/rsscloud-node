@@ -17,7 +17,7 @@ var h_server = new RSSCloud.PingHub({
 });
 
 // TODO: Revert to this
-// h_server.listen(9071);
+// h_server.listen(9081);
 
 // Some more complex server setup, to get a static middleware in there.
 h_server.prepare(function () {
@@ -48,7 +48,7 @@ h_server.prepare(function () {
 
 // Set up ping receiver server
 var r_server = new RSSCloud.Receiver({});
-r_server.listen(9081);
+r_server.listen(9071);
 
 // Set up telnet REPL - rlwrap telnet 127.0.0.1 5001
 _(global).extend({

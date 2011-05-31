@@ -43,6 +43,13 @@ module.exports = nodeunit.testCase({
 
         var $this = this;
         async.waterfall([
+            function (next) {
+                // Create test data dir, if necessary
+                fs.stat(test_db_path, function (err, stats) {
+                    if (err) { fs.mkdir(test_db_path, 0777, next); } 
+                    else { next(); }
+                });
+            },
             function (wf_next) {
                 fs.readdir(test_db_path, function (err, files) {
                     if (!files) { return wf_next(); }
@@ -78,6 +85,53 @@ module.exports = nodeunit.testCase({
     tearDown: function (callback) {
         var $this = this;
         $this.sync.close(callback);
+    },
+
+    "Get or create a notification" : function (test) {
+        var $this = this;
+
+        var data = {
+            'client_addr': '127.0.0.1',
+            'feed_url': 'http://decafbad.com/blog/feed',
+            'port': '8080',
+            'path': '/notifyme',
+            'protocol': 'http-post',
+            'notify_procedure': null
+        };
+
+        async.waterfall([
+
+            function (wf_next) {
+                $this.requests.getOrCreate(data, {
+                    success: function (stat) { wf_next(null, stat); },
+                    error:   function (err)  { wf_next(err); }
+                });
+            },
+            function (stat, wf_next) {
+                test.ok(stat.created);
+                
+                test.ok(stat.instance);
+                test.equal(stat.instance.get('client_addr'), '127.0.0.1');
+                wf_next();
+            },
+            function (wf_next) {
+                $this.requests.getOrCreate(data, {
+                    success: function (stat) {  wf_next(null, stat); },
+                    error:   function (err)  { wf_next(err); }
+                });
+            },
+            function (stat, wf_next) {
+                test.ok(!stat.created);
+
+                test.ok(stat.instance);
+                test.equal(stat.instance.get('client_addr'), '127.0.0.1');
+                wf_next();
+            },
+
+        ], function (err) {
+            if (err) { test.ok(false, err); }
+            else { test.done(); }
+        });
     },
 
     "Notification requests can be fetched by feed url": function (test) {
