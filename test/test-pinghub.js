@@ -458,6 +458,14 @@ module.exports = nodeunit.testCase({
         // pings look like the registration source values.
         var expected_pings = test_registrations_values;
 
+        // HACK: Need to expect URL-encoded ping URL on the path
+        for (var i=0; i<expected_pings.length; i++) {
+            if ('http-post' == expected_pings[i][3]) {
+                expected_pings[i][2] = expected_pings[i][2] + 
+                    '?url=' + querystring.escape(expected_pings[i][5]);
+            }
+        }
+
         // Track pings seen throughout the course of issuing notifications.
         var pings_seen = [];
 
